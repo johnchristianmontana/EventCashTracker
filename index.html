@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0070F0">
+  <link rel="manifest" href="manifest.json">
+  <title>Cash Tracker</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:       #1B4332;
+      --green-mid:   #2D6A4F;
+      --green-light: #40916C;
+      --green-pale:  #D8F3DC;
+      --teal:        #0D9488;
+      --bg:          #EEF2EE;
+      --surface:     #FFFFFF;
+      --border:      #D1D5DB;
+      --text:        #111827;
+      --muted:       #6B7280;
+      --red:         #DC2626;
+      --orange:      #D97706;
+      --success:     #059669;
+      --r:           14px;
+      --shadow:      0 1px 4px rgba(0,0,0,0.07), 0 4px 14px rgba(0,0,0,0.05);
+    }
+
+    html, body { height: 100%; overflow: hidden; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 500px;
+      margin: 0 auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* All inputs 16px to prevent iOS zoom */
+    input, select, textarea { font-size: 16px; font-family: inherit; }
+    button { font-family: inherit; touch-action: manipulation; -webkit-tap-highlight-color: transparent; cursor: pointer; }
+
+    /* ── SCREENS ─────────────────────────────────── */
+    .screen { display: none; flex-direction: column; height: 100%; overflow: hidden; }
+    .screen.active { display: flex; }
+
+    /* ── TOP BAR ──────────────────────────────────── */
+    .top-bar {
+      background: var(--green);
+      color: white;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      min-height: 58px;
+    }
+    .top-bar-center { flex: 1; text-align: center; padding: 0 8px; }
+    .top-bar-title  { font-size: 16px; font-weight: 700; line-height: 1.2; }
+    .top-bar-sub    { font-size: 12px; opacity: 0.75; margin-top: 2px; }
+    .icon-btn {
+      background: rgba(255,255,255,0.18);
+      border: none; color: white; border-radius: 10px;
+      width: 44px; height: 38px;
+      font-size: 18px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .icon-btn:active { background: rgba(255,255,255,0.30); }
+    .icon-btn.ghost  { opacity: 0; pointer-events: none; }
+
+    /* ── SCROLL BODY ──────────────────────────────── */
+    .body {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 14px 20px;
+    }
+
+    /* ── BOTTOM BAR ───────────────────────────────── */
+    .bottom-bar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+      gap: 8px;
+    }
+    .bot-stat        { font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .bot-stat strong { font-size: 18px; font-weight: 800; color: var(--text); display: block; }
+    .bot-btns        { display: flex; gap: 8px; }
+    .pill-btn {
+      border-radius: 22px;
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px; font-weight: 600;
+      padding: 8px 14px;
+      display: flex; align-items: center; gap: 5px;
+    }
+    .pill-btn:active  { filter: brightness(0.9); }
+    .pill-btn.primary { background: var(--green-mid); border-color: var(--green-mid); color: white; }
+
+    /* ── CARDS ────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      margin-bottom: 10px;
+      box-shadow: var(--shadow);
+    }
+    .card-label {
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    /* ── BUTTONS ──────────────────────────────────── */
+    .btn {
+      width: 100%; border: none; border-radius: var(--r);
+      padding: 15px 20px;
+      font-size: 16px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:active         { filter: brightness(0.88); }
+    .btn-green          { background: var(--green-mid); color: white; }
+    .btn-teal           { background: var(--teal); color: white; }
+    .btn-outline        { background: transparent; border: 2px solid var(--border); color: var(--text); }
+    .btn-outline-red    { background: transparent; border: 2px solid #FCA5A5; color: var(--red); }
+    .btn-red            { background: var(--red); color: white; }
+    .btn-sm             { padding: 11px 16px; font-size: 14px; border-radius: 10px; }
+    .mt-8               { margin-top: 8px; }
+    .mt-12              { margin-top: 12px; }
+
+    /* ── FORM FIELDS ──────────────────────────────── */
+    .field-group { margin-bottom: 14px; }
+    .field-group:last-child { margin-bottom: 0; }
+    .field-label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin-bottom: 5px; }
+    .field {
+      width: 100%; border: 2px solid var(--border); border-radius: 10px;
+      padding: 13px 14px; font-size: 16px;
+      color: var(--text); background: var(--surface);
+      transition: border-color 0.15s;
+    }
+    .field:focus { outline: none; border-color: var(--green-mid); }
+
+    /* ── CATEGORY GRID ────────────────────────────── */
+    .cat-grid          { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .cat-grid.three    { grid-template-columns: repeat(3, 1fr); }
+    .cat-btn {
+      border: 2px solid var(--border);
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 14px 6px 12px;
+      text-align: center;
+      transition: all 0.12s;
+      touch-action: manipulation;
+    }
+    .cat-btn:active     { transform: scale(0.92); }
+    .cat-btn.selected   { border-color: var(--green-mid); background: var(--green-pale); }
+    .cat-icon           { font-size: 28px; display: block; margin-bottom: 5px; }
+    .cat-name           { font-size: 12px; font-weight: 700; color: var(--text); display: block; }
+    .cat-btn.selected .cat-name { color: var(--green); }
+
+    /* ── DIVIDER ──────────────────────────────────── */
+    .divider {
+      display: flex; align-items: center; gap: 8px;
+      margin: 10px 0 8px;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.6px;
+      color: var(--muted);
+    }
+    .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── AMOUNT SECTION ───────────────────────────── */
+    #amt-section { display: none; }
+
+    .amt-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .amt-btn {
+      border: 2px solid var(--border); background: var(--surface);
+      border-radius: 10px; padding: 14px 4px;
+      font-size: 16px; font-weight: 700; text-align: center;
+      touch-action: manipulation;
+    }
+    .amt-btn:active { transform: scale(0.91); background: var(--green-pale); border-color: var(--green-mid); }
+
+    .free-row { display: flex; align-items: stretch; gap: 8px; }
+    .dollar   { display: flex; align-items: center; font-size: 22px; font-weight: 800; color: var(--green-mid); padding: 0 2px; }
+    .free-row .field { flex: 1; font-size: 22px; font-weight: 700; text-align: center; padding: 12px 10px; margin: 0; }
+    .add-btn  {
+      background: var(--green-mid); color: white; border: none;
+      border-radius: 10px; padding: 12px 18px;
+      font-size: 15px; font-weight: 700;
+      touch-action: manipulation;
+      white-space: nowrap;
+    }
+    .add-btn:active { filter: brightness(0.88); }
+
+    /* ── BASKET ───────────────────────────────────── */
+    .basket-row    { display: flex; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .basket-row:last-of-type { border-bottom: none; }
+    .basket-icon   { font-size: 20px; margin-right: 10px; flex-shrink: 0; }
+    .basket-cat    { font-size: 14px; font-weight: 600; flex: 1; }
+    .basket-amt    { font-size: 16px; font-weight: 700; color: var(--green-mid); margin-right: 6px; }
+    .basket-del    { background: none; border: none; font-size: 18px; color: #9CA3AF; padding: 4px 6px; touch-action: manipulation; }
+    .basket-del:active { color: var(--red); }
+    .basket-empty  { padding: 12px 0; text-align: center; font-size: 14px; color: var(--muted); font-style: italic; }
+    .basket-sub    { text-align: right; font-size: 13px; font-weight: 700; color: var(--green-mid); padding-top: 8px; }
+    .basket-done   { display: none; margin-top: 12px; }
+
+    /* ── LOG ──────────────────────────────────────── */
+    .grp-hdr {
+      display: flex; justify-content: space-between;
+      font-size: 11px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--muted);
+      padding: 10px 0 4px;
+      border-top: 1px solid var(--border);
+    }
+    .grp-hdr:first-child { border-top: none; padding-top: 0; }
+    .log-item  { display: flex; align-items: center; padding: 8px 0; border-bottom: 1px dashed #E5E7EB; }
+    .log-item:last-child { border-bottom: none; }
+    .log-icon  { font-size: 16px; margin-right: 10px; flex-shrink: 0; }
+    .log-cat   { font-size: 14px; flex: 1; }
+    .log-amt   { font-size: 14px; font-weight: 700; }
+    .log-del   { background: none; border: none; font-size: 14px; color: #D1D5DB; padding: 4px 6px; margin-left: 4px; touch-action: manipulation; }
+    .log-del:active { color: var(--red); }
+
+    .status-pill {
+      display: inline-block; font-size: 10px; font-weight: 700;
+      border-radius: 6px; padding: 2px 7px; margin-left: 5px;
+    }
+    .status-pill.sent   { background: #D1FAE5; color: #065F46; }
+    .status-pill.unsent { background: #FEF3C7; color: #92400E; }
+
+    .tot-row       { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14px; border-bottom: 1px solid var(--border); }
+    .tot-row.grand { font-weight: 700; font-size: 16px; border-bottom: none; border-top: 2px solid var(--border); padding-top: 10px; margin-top: 4px; }
+
+    /* ── SETUP SCREEN ─────────────────────────────── */
+    .hero          { text-align: center; padding: 28px 0 20px; }
+    .hero .icon    { font-size: 64px; }
+    .hero h1       { font-size: 26px; font-weight: 800; color: var(--green); margin-top: 8px; }
+    .hero p        { font-size: 14px; color: var(--muted); margin-top: 4px; }
+
+    /* ── SEND SCREEN ──────────────────────────────── */
+    .stat-row     { display: flex; justify-content: space-between; align-items: center; padding: 9px 0; font-size: 14px; border-bottom: 1px solid var(--border); }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-val     { font-weight: 700; }
+    .success-box  { background: #D1FAE5; border-radius: var(--r); padding: 20px; text-align: center; margin-bottom: 10px; }
+    .success-box .check { font-size: 40px; }
+    .success-box h3 { color: #065F46; font-size: 18px; font-weight: 700; margin-top: 8px; }
+    .success-box p  { color: #047857; font-size: 13px; margin-top: 4px; }
+    .warn-box  { background: #FEF3C7; border-radius: var(--r); padding: 14px 16px; font-size: 13px; color: #92400E; margin-bottom: 10px; }
+    .error-box { background: #FEE2E2; border-radius: var(--r); padding: 14px 16px; font-size: 13px; color: #991B1B; margin-bottom: 10px; }
+
+    /* ── SETTINGS ─────────────────────────────────── */
+    .sec-lbl { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-bottom: 10px; }
+    .danger-card { border: 1.5px solid #FCA5A5; }
+
+    /* ── MISC ─────────────────────────────────────── */
+    .center { text-align: center; }
+    .muted  { color: var(--muted); font-size: 13px; }
+    .badge  {
+      display: inline-flex; align-items: center; justify-content: center;
+      background: var(--green-mid); color: white;
+      font-size: 10px; font-weight: 700;
+      border-radius: 9px; padding: 1px 7px;
+      margin-left: 6px; line-height: 16px;
+    }
+
+    /* ── TOAST ────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 86px; left: 50%;
+      transform: translateX(-50%) translateY(12px);
+      background: rgba(17, 24, 39, 0.88);
+      color: white; padding: 10px 18px;
+      border-radius: 24px; font-size: 14px; font-weight: 500;
+      opacity: 0; transition: all 0.25s ease;
+      pointer-events: none; white-space: nowrap;
+      z-index: 9999; max-width: calc(100% - 40px); text-align: center;
+    }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- ══════════════════════════════════════════════════
+     SETUP SCREEN
+     ══════════════════════════════════════════════════ -->
+<div class="screen active" id="screen-setup">
+  <div class="body">
+    <div class="hero">
+      <div class="icon">🎪</div>
+      <h1>Cash Tracker</h1>
+      <p>Nonprofit event fundraising</p>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Start a New Session</div>
+      <div class="field-group">
+        <label class="field-label" for="in-name">Event Name</label>
+        <input class="field" type="text" id="in-name" placeholder="e.g. Summer Gala 2026" autocomplete="off" autocorrect="off">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="in-date">Date</label>
+        <input class="field" type="date" id="in-date">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="in-vol">Your Name / Initials</label>
+        <input class="field" type="text" id="in-vol" placeholder="e.g. Jane or JD" autocomplete="off" autocorrect="off">
+      </div>
+    </div>
+
+    <button class="btn btn-green" onclick="startSession()">✓ &nbsp;Start Recording</button>
+    <p class="muted center mt-8">Data is saved on this device. No internet required.</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     MAIN SCREEN
+     ══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-main">
+  <div class="top-bar">
+    <button class="icon-btn ghost">⚙</button>
+    <div class="top-bar-center">
+      <div class="top-bar-title" id="hdr-name">—</div>
+      <div class="top-bar-sub"   id="hdr-meta">—</div>
+    </div>
+    <button class="icon-btn" onclick="showScreen('screen-settings')" aria-label="Settings">⚙</button>
+  </div>
+
+  <div class="body" id="main-body">
+
+    <!-- Current basket -->
+    <div class="card">
+      <div class="card-label">
+        Current Transaction
+        <span class="badge" id="basket-badge" style="display:none;"></span>
+      </div>
+      <div id="basket-list">
+        <div class="basket-empty" id="basket-empty">No items yet — choose a category below</div>
+      </div>
+      <div class="basket-done" id="basket-done">
+        <button class="btn btn-teal" onclick="completeTransaction()" style="margin-bottom:8px;">
+          ✓ &nbsp;Done — Next Person
+        </button>
+        <button class="btn btn-outline btn-sm" onclick="clearBasket()">
+          ✕ &nbsp;Cancel / Clear
+        </button>
+      </div>
+    </div>
+
+    <!-- Category selection -->
+    <div class="card">
+      <div class="card-label">1 — What are they paying for?</div>
+      <div class="cat-grid" style="margin-bottom:8px;">
+        <button class="cat-btn" data-cat="Ticket"     onclick="selectCat(this)"><span class="cat-icon">🎟️</span><span class="cat-name">Ticket</span></button>
+        <button class="cat-btn" data-cat="Membership" onclick="selectCat(this)"><span class="cat-icon">🏅</span><span class="cat-name">Membership</span></button>
+        <button class="cat-btn" data-cat="Donation"   onclick="selectCat(this)"><span class="cat-icon">💝</span><span class="cat-name">Donation</span></button>
+      </div>
+      <div class="divider">Merchandise</div>
+      <div class="cat-grid three">
+        <button class="cat-btn" data-cat="Tee Shirt"  onclick="selectCat(this)"><span class="cat-icon">👕</span><span class="cat-name">Tee Shirt</span></button>
+        <button class="cat-btn" data-cat="Hat"        onclick="selectCat(this)"><span class="cat-icon">🧢</span><span class="cat-name">Hat</span></button>
+        <button class="cat-btn" data-cat="Coffee Mug" onclick="selectCat(this)"><span class="cat-icon">☕</span><span class="cat-name">Coffee Mug</span></button>
+      </div>
+    </div>
+
+    <!-- Amount section (shown after category tap) -->
+    <div class="card" id="amt-section">
+      <div class="card-label">
+        2 — Amount for <strong id="amt-cat-label" style="text-transform:none; font-size:12px;"></strong>
+      </div>
+      <div class="amt-grid" id="amt-presets">
+        <!-- Populated by JS -->
+      </div>
+      <div class="divider" id="amt-divider">Or enter any amount</div>
+      <div class="free-row">
+        <span class="dollar">$</span>
+        <input class="field" type="number" id="in-amt"
+               placeholder="0.00" min="0.01" step="0.01" inputmode="decimal">
+        <button class="add-btn" onclick="addCustomAmt()">+ Add</button>
+      </div>
+    </div>
+
+  </div><!-- /body -->
+
+  <div class="bottom-bar">
+    <div class="bot-stat">
+      <strong id="bot-total">$0.00</strong>
+      <span id="bot-count">0 transactions</span>
+    </div>
+    <div class="bot-btns">
+      <button class="pill-btn"         onclick="showScreen('screen-log')">📋 Log</button>
+      <button class="pill-btn primary" onclick="showScreen('screen-send')">📤 Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     LOG SCREEN
+     ══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-log">
+  <div class="top-bar">
+    <button class="icon-btn" onclick="showScreen('screen-main')">←</button>
+    <div class="top-bar-center"><div class="top-bar-title">Transaction Log</div></div>
+    <button class="icon-btn ghost">←</button>
+  </div>
+  <div class="body">
+    <div class="card">
+      <div class="card-label">Totals by Category</div>
+      <div id="log-totals"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">All Items — newest first</div>
+      <div id="log-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SEND SCREEN
+     ══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-send">
+  <div class="top-bar">
+    <button class="icon-btn" onclick="showScreen('screen-main')">←</button>
+    <div class="top-bar-center"><div class="top-bar-title">Send to Google Sheets</div></div>
+    <button class="icon-btn ghost">←</button>
+  </div>
+  <div class="body">
+    <div class="card">
+      <div class="card-label">Session Summary</div>
+      <div id="send-summary"></div>
+    </div>
+
+    <div id="no-url-msg" class="warn-box" style="display:none;">
+      ⚠️ Google Sheets URL not set. Open <strong>Settings ⚙</strong> and paste your Apps Script URL.
+    </div>
+
+    <div id="send-result" style="display:none;"></div>
+
+    <button class="btn btn-teal" id="send-btn" onclick="sendToSheets()">
+      📤 &nbsp;Send to Google Sheets
+    </button>
+    <p class="muted center mt-8" id="send-hint"></p>
+
+    <button class="btn btn-outline btn-sm mt-8" onclick="exportCSV()">
+      💾 &nbsp;Download CSV (backup)
+    </button>
+    <button class="btn btn-outline btn-sm mt-8" onclick="resetSentStatus()">
+      ↺ &nbsp;Mark all as unsent (re-send everything)
+    </button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SETTINGS SCREEN
+     ══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-settings">
+  <div class="top-bar">
+    <button class="icon-btn" onclick="navBack()">←</button>
+    <div class="top-bar-center"><div class="top-bar-title">Settings</div></div>
+    <button class="icon-btn ghost">←</button>
+  </div>
+  <div class="body">
+
+    <div class="card">
+      <div class="sec-lbl">Google Sheets Integration</div>
+      <div class="field-group">
+        <label class="field-label" for="in-url">Apps Script Web App URL</label>
+        <input class="field" type="url" id="in-url"
+               placeholder="https://script.google.com/macros/s/...">
+      </div>
+      <button class="btn btn-green btn-sm" onclick="saveSettings()">Save URL</button>
+    </div>
+
+    <div class="card">
+      <div class="sec-lbl">Current Session</div>
+      <div id="sess-info" style="font-size:14px; line-height:1.8; margin-bottom:12px;"></div>
+      <button class="btn btn-outline btn-sm" onclick="changeEvent()">Change Event / Volunteer</button>
+    </div>
+
+    <div class="card danger-card">
+      <div class="sec-lbl" style="color:var(--red);">Danger Zone</div>
+      <p class="muted mt-8" style="margin-bottom:12px;">
+        Permanently deletes all transaction data from this device.
+        Only do this after confirming the data arrived in Google Sheets.
+      </p>
+      <button class="btn btn-outline-red btn-sm" onclick="clearAllData()">
+        🗑 &nbsp;Delete All Transactions
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════════
+// CONSTANTS
+// ══════════════════════════════════════════════
+
+const STORE    = 'cashtracker_v1';
+const PRESETS  = [10, 15, 20, 25, 30, 35, 40, 45, 50];
+const CATS     = {
+  'Ticket'    : '🎟️',
+  'Membership': '🏅',
+  'Donation'  : '💝',
+  'Tee Shirt' : '👕',
+  'Hat'       : '🧢',
+  'Coffee Mug': '☕'
+};
+
+// ══════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════
+
+function blank() {
+  return {
+    event    : null,   // { name, date, volunteer }
+    txns     : [],     // [{ id, txnId, ts, category, amount, sent }]
+    basket   : [],     // [{ id, category, amount }]  ← in-progress transaction
+    nextTxnId: 1,
+    settings : { sheetsUrl: '' }
+  };
+}
+
+let S = blank();
+let _prevScreen  = 'screen-main';
+let _selectedCat = null;
+
+function load() {
+  try { const r = localStorage.getItem(STORE); if (r) S = JSON.parse(r); }
+  catch(e) { S = blank(); }
+}
+function persist() {
+  try { localStorage.setItem(STORE, JSON.stringify(S)); } catch(e) {}
+}
+
+// ══════════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════════
+
+function showScreen(id) {
+  _prevScreen = document.querySelector('.screen.active')?.id ?? 'screen-main';
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'screen-log')      renderLog();
+  if (id === 'screen-send')     renderSend();
+  if (id === 'screen-settings') renderSettings();
+}
+function navBack() { showScreen(_prevScreen); }
+
+// ══════════════════════════════════════════════
+// SETUP / SESSION
+// ══════════════════════════════════════════════
+
+function initApp() {
+  load();
+  document.getElementById('in-date').value = todayStr();
+  if (S.event) {
+    showScreen('screen-main');
+    refreshHeader();
+    refreshBottomBar();
+    renderBasket();
+  } else {
+    showScreen('screen-setup');
+  }
+  // Register service worker for offline capability
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+}
+
+function startSession() {
+  const name = document.getElementById('in-name').value.trim();
+  const date = document.getElementById('in-date').value;
+  const vol  = document.getElementById('in-vol').value.trim() || 'Volunteer';
+  if (!name) { toast('Enter an event name'); return; }
+  if (!date) { toast('Select a date'); return; }
+  S.event = { name, date, volunteer: vol };
+  persist();
+  showScreen('screen-main');
+  refreshHeader();
+  refreshBottomBar();
+  toast('Session started 🎉');
+}
+
+function changeEvent() {
+  if (S.event) {
+    document.getElementById('in-name').value = S.event.name;
+    document.getElementById('in-date').value  = S.event.date;
+    document.getElementById('in-vol').value   = S.event.volunteer;
+  }
+  S.event = null;
+  persist();
+  showScreen('screen-setup');
+}
+
+// ══════════════════════════════════════════════
+// MAIN SCREEN HEADER / BOTTOM BAR
+// ══════════════════════════════════════════════
+
+function refreshHeader() {
+  if (!S.event) return;
+  document.getElementById('hdr-name').textContent = S.event.name;
+  const d = new Date(S.event.date + 'T12:00:00').toLocaleDateString('en-US',
+    { month: 'short', day: 'numeric', year: 'numeric' });
+  document.getElementById('hdr-meta').textContent = `${d} · ${S.event.volunteer}`;
+}
+
+function refreshBottomBar() {
+  const total   = S.txns.reduce((s, t) => s + t.amount, 0);
+  const txnCnt  = new Set(S.txns.map(t => t.txnId)).size;
+  document.getElementById('bot-total').textContent = fmt(total);
+  document.getElementById('bot-count').textContent =
+    `${txnCnt} transaction${txnCnt !== 1 ? 's' : ''}`;
+}
+
+// ══════════════════════════════════════════════
+// CATEGORY & AMOUNT SELECTION
+// ══════════════════════════════════════════════
+
+function selectCat(btn) {
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  _selectedCat = btn.dataset.cat;
+
+  // Populate preset buttons
+  const grid = document.getElementById('amt-presets');
+  grid.innerHTML = '';
+  PRESETS.forEach(p => {
+    const b = document.createElement('button');
+    b.className   = 'amt-btn';
+    b.textContent = `$${p}`;
+    b.onclick = () => addItem(_selectedCat, p);
+    grid.appendChild(b);
+  });
+
+  document.getElementById('amt-cat-label').textContent = _selectedCat;
+  document.getElementById('in-amt').value = '';
+  document.getElementById('amt-section').style.display = 'block';
+
+  // Scroll amount section into view
+  setTimeout(() => {
+    document.getElementById('amt-section')
+      .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, 80);
+}
+
+function addCustomAmt() {
+  if (!_selectedCat) { toast('Select a category first'); return; }
+  const val = parseFloat(document.getElementById('in-amt').value);
+  if (isNaN(val) || val <= 0) { toast('Enter a valid amount'); return; }
+  addItem(_selectedCat, val);
+  document.getElementById('in-amt').value = '';
+}
+
+// ══════════════════════════════════════════════
+// BASKET
+// ══════════════════════════════════════════════
+
+function addItem(cat, amount) {
+  amount = +parseFloat(amount).toFixed(2);
+  S.basket.push({ id: uid(), category: cat, amount });
+  persist();
+  renderBasket();
+  refreshBottomBar();
+  toast(`${CATS[cat]} ${cat} — ${fmt(amount)} added`);
+  // Reset category highlight
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('amt-section').style.display = 'none';
+  _selectedCat = null;
+}
+
+function renderBasket() {
+  const listEl   = document.getElementById('basket-list');
+  const emptyEl  = document.getElementById('basket-empty');
+  const doneEl   = document.getElementById('basket-done');
+  const badgeEl  = document.getElementById('basket-badge');
+
+  if (S.basket.length === 0) {
+    listEl.innerHTML = '';
+    listEl.appendChild(emptyEl);
+    emptyEl.style.display = 'block';
+    doneEl.style.display   = 'none';
+    badgeEl.style.display  = 'none';
+    return;
+  }
+
+  emptyEl.style.display  = 'none';
+  doneEl.style.display   = 'block';
+  badgeEl.style.display  = 'inline-flex';
+  badgeEl.textContent    = S.basket.length;
+
+  listEl.innerHTML = '';
+  S.basket.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'basket-row';
+    row.innerHTML = `
+      <span class="basket-icon">${CATS[item.category] ?? ''}</span>
+      <span class="basket-cat">${item.category}</span>
+      <span class="basket-amt">${fmt(item.amount)}</span>
+      <button class="basket-del" onclick="removeBasketItem('${item.id}')" aria-label="Remove">✕</button>
+    `;
+    listEl.appendChild(row);
+  });
+
+  if (S.basket.length > 1) {
+    const sub = document.createElement('div');
+    sub.className   = 'basket-sub';
+    sub.textContent = `Basket total: ${fmt(S.basket.reduce((s, i) => s + i.amount, 0))}`;
+    listEl.appendChild(sub);
+  }
+}
+
+function removeBasketItem(id) {
+  S.basket = S.basket.filter(i => i.id !== id);
+  persist();
+  renderBasket();
+  refreshBottomBar();
+}
+
+function clearBasket() {
+  S.basket = [];
+  persist();
+  renderBasket();
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('amt-section').style.display = 'none';
+  _selectedCat = null;
+  toast('Transaction cleared');
+}
+
+function completeTransaction() {
+  if (S.basket.length === 0) return;
+  const txnId = S.nextTxnId++;
+  const ts    = new Date().toISOString();
+  S.basket.forEach(item => {
+    S.txns.push({ id: item.id, txnId, ts, category: item.category, amount: item.amount, sent: false });
+  });
+  const n     = S.basket.length;
+  const total = S.basket.reduce((s, i) => s + i.amount, 0);
+  S.basket    = [];
+  persist();
+  renderBasket();
+  refreshBottomBar();
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('amt-section').style.display = 'none';
+  _selectedCat = null;
+  // Scroll back to top of main screen
+  document.getElementById('main-body').scrollTo({ top: 0, behavior: 'smooth' });
+  toast(`✓ Transaction #${txnId} — ${n} item${n !== 1 ? 's' : ''}, ${fmt(total)}`);
+}
+
+// ══════════════════════════════════════════════
+// LOG SCREEN
+// ══════════════════════════════════════════════
+
+function renderLog() {
+  // Totals by category
+  const catMap = {};
+  S.txns.forEach(t => { catMap[t.category] = (catMap[t.category] ?? 0) + t.amount; });
+  const grand = S.txns.reduce((s, t) => s + t.amount, 0);
+
+  const totalsEl = document.getElementById('log-totals');
+  if (!S.txns.length) {
+    totalsEl.innerHTML = '<p class="muted" style="padding:6px 0;">No transactions yet.</p>';
+  } else {
+    totalsEl.innerHTML =
+      Object.entries(catMap).sort((a, b) => a[0].localeCompare(b[0])).map(([cat, amt]) =>
+        `<div class="tot-row"><span>${CATS[cat] ?? ''} ${cat}</span><strong>${fmt(amt)}</strong></div>`
+      ).join('') +
+      `<div class="tot-row grand"><span>Grand Total</span><strong>${fmt(grand)}</strong></div>`;
+  }
+
+  // Items grouped by txnId (newest first)
+  const itemsEl = document.getElementById('log-items');
+  if (!S.txns.length) {
+    itemsEl.innerHTML = '<p class="muted" style="padding:6px 0;">No transactions recorded.</p>';
+    return;
+  }
+
+  const groups = {};
+  [...S.txns].reverse().forEach(t => {
+    if (!groups[t.txnId]) groups[t.txnId] = [];
+    groups[t.txnId].push(t);
+  });
+
+  itemsEl.innerHTML = Object.entries(groups).map(([txnId, items]) => {
+    const time  = new Date(items[0].ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const grpTot = items.reduce((s, t) => s + t.amount, 0);
+    const pill   = items[0].sent
+      ? '<span class="status-pill sent">✓ sent</span>'
+      : '<span class="status-pill unsent">unsent</span>';
+
+    const rows = items.map(t =>
+      `<div class="log-item">
+        <span class="log-icon">${CATS[t.category] ?? ''}</span>
+        <span class="log-cat">${t.category}</span>
+        <strong class="log-amt">${fmt(t.amount)}</strong>
+        <button class="log-del" onclick="deleteLogItem('${t.id}')" title="Delete this item">✕</button>
+      </div>`
+    ).join('');
+
+    return `
+      <div class="grp-hdr">
+        <span>Txn #${txnId} · ${time} ${pill}</span>
+        <span>${fmt(grpTot)}</span>
+      </div>
+      ${rows}
+    `;
+  }).join('');
+}
+
+function deleteLogItem(id) {
+  if (!confirm('Delete this item from the log?')) return;
+  S.txns = S.txns.filter(t => t.id !== id);
+  persist();
+  renderLog();
+  refreshBottomBar();
+  toast('Item deleted');
+}
+
+// ══════════════════════════════════════════════
+// SEND SCREEN
+// ══════════════════════════════════════════════
+
+function renderSend() {
+  const all    = S.txns;
+  const unsent = all.filter(t => !t.sent);
+  const total  = all.reduce((s, t) => s + t.amount, 0);
+  const unAmt  = unsent.reduce((s, t) => s + t.amount, 0);
+
+  document.getElementById('send-summary').innerHTML = `
+    <div class="stat-row"><span>Total items recorded</span><strong class="stat-val">${all.length}</strong></div>
+    <div class="stat-row"><span>Total amount</span><strong class="stat-val">${fmt(total)}</strong></div>
+    <div class="stat-row" style="color:var(--orange);">
+      <span>⏳ Not yet sent</span>
+      <strong class="stat-val" style="color:var(--orange);">${unsent.length} items (${fmt(unAmt)})</strong>
+    </div>
+    <div class="stat-row" style="color:var(--success);">
+      <span>✓ Already sent</span>
+      <strong class="stat-val" style="color:var(--success);">${all.length - unsent.length} items</strong>
+    </div>
+  `;
+
+  const noUrlEl  = document.getElementById('no-url-msg');
+  const sendBtn  = document.getElementById('send-btn');
+  const hintEl   = document.getElementById('send-hint');
+  document.getElementById('send-result').style.display = 'none';
+
+  if (!S.settings.sheetsUrl) {
+    noUrlEl.style.display  = 'block';
+    sendBtn.style.display  = 'none';
+    hintEl.style.display   = 'none';
+  } else {
+    noUrlEl.style.display  = 'none';
+    sendBtn.style.display  = 'flex';
+    hintEl.style.display   = 'block';
+    sendBtn.disabled       = unsent.length === 0;
+    hintEl.textContent     = unsent.length === 0
+      ? '✓ All transactions have been sent.'
+      : `${unsent.length} unsent item${unsent.length !== 1 ? 's' : ''} will be sent.`;
+  }
+}
+
+async function sendToSheets() {
+  const unsent = S.txns.filter(t => !t.sent);
+  if (!unsent.length)          { toast('Nothing new to send'); return; }
+  if (!S.settings.sheetsUrl)   { toast('Set the Sheets URL in Settings first'); return; }
+
+  const btn = document.getElementById('send-btn');
+  btn.textContent = '⏳ Sending…';
+  btn.disabled    = true;
+
+  const rows = unsent.map(t => ({
+    eventName    : S.event?.name      ?? '',
+    eventDate    : S.event?.date      ?? '',
+    volunteer    : S.event?.volunteer ?? '',
+    transactionId: t.txnId,
+    timestamp    : new Date(t.ts).toLocaleString('en-US'),
+    category     : t.category,
+    amount       : t.amount
+  }));
+
+  const resultEl = document.getElementById('send-result');
+  resultEl.style.display = 'block';
+
+  try {
+    // mode: 'no-cors' is the standard pattern for Google Apps Script.
+    // The request goes through and GAS appends to the sheet.
+    // We cannot read the response (it's opaque), so we optimistically
+    // mark items as sent and ask the user to verify in the sheet.
+    await fetch(S.settings.sheetsUrl, {
+      method : 'POST',
+      mode   : 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body   : JSON.stringify({ rows })
+    });
+
+    S.txns.forEach(t => { if (!t.sent) t.sent = true; });
+    persist();
+
+    resultEl.innerHTML = `
+      <div class="success-box">
+        <div class="check">✅</div>
+        <h3>${rows.length} row${rows.length !== 1 ? 's' : ''} sent</h3>
+        <p>Please open Google Sheets to confirm the data arrived.</p>
+      </div>
+    `;
+    renderSend();
+
+  } catch (err) {
+    resultEl.innerHTML = `
+      <div class="error-box">
+        ❌ Send failed: ${err.message}<br>
+        Your data is safe on this device. Try again when you have internet.
+      </div>
+    `;
+  }
+
+  btn.innerHTML = '📤 &nbsp;Send to Google Sheets';
+  btn.disabled  = false;
+}
+
+function resetSentStatus() {
+  if (!S.txns.length) { toast('No transactions to reset'); return; }
+  if (!confirm('Mark all transactions as unsent? They will all be included in the next send.')) return;
+  S.txns.forEach(t => t.sent = false);
+  persist();
+  renderSend();
+  toast('All marked as unsent');
+}
+
+function exportCSV() {
+  if (!S.txns.length) { toast('No transactions to export'); return; }
+  const hdr  = ['Event Name','Event Date','Volunteer','Transaction ID','Timestamp','Category','Amount'];
+  const body = S.txns.map(t => [
+    cell(S.event?.name ?? ''),
+    S.event?.date ?? '',
+    cell(S.event?.volunteer ?? ''),
+    t.txnId,
+    cell(new Date(t.ts).toLocaleString('en-US')),
+    t.category,
+    t.amount.toFixed(2)
+  ]);
+  const csv  = [hdr, ...body].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  const safe = (S.event?.name ?? 'event').replace(/[^a-z0-9]/gi, '_');
+  a.download = `cash_${safe}_${S.event?.date ?? 'export'}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSV downloaded');
+}
+
+function cell(v) { return `"${String(v).replace(/"/g, '""')}"`; }
+
+// ══════════════════════════════════════════════
+// SETTINGS SCREEN
+// ══════════════════════════════════════════════
+
+function renderSettings() {
+  document.getElementById('in-url').value = S.settings.sheetsUrl ?? '';
+  const info = document.getElementById('sess-info');
+  if (S.event) {
+    const d = new Date(S.event.date + 'T12:00:00').toLocaleDateString('en-US',
+      { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    info.innerHTML = `<strong>${S.event.name}</strong><br>${d}<br>Volunteer: ${S.event.volunteer}`;
+  } else {
+    info.textContent = 'No active session';
+  }
+}
+
+function saveSettings() {
+  S.settings.sheetsUrl = document.getElementById('in-url').value.trim();
+  persist();
+  toast('Settings saved ✓');
+}
+
+function clearAllData() {
+  if (!S.txns.length) { toast('No data to delete'); return; }
+  if (!confirm(`Permanently delete all ${S.txns.length} transaction items from this device?`)) return;
+  S.txns    = [];
+  S.basket  = [];
+  S.nextTxnId = 1;
+  persist();
+  refreshBottomBar();
+  renderBasket();
+  toast('All data deleted');
+  showScreen('screen-main');
+}
+
+// ══════════════════════════════════════════════
+// UTILITIES
+// ══════════════════════════════════════════════
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+function fmt(n) {
+  return '$' + (+n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+let _toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  if (_toastTimer) clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════════
+// BOOT
+// ══════════════════════════════════════════════
+
+document.addEventListener('DOMContentLoaded', initApp);
+</script>
+</body>
+</html>

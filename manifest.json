@@ -1,0 +1,19 @@
+{
+  "name": "Cash Tracker",
+  "short_name": "Cash Tracker",
+  "description": "Nonprofit event cash tracking — offline first",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0070F0",
+  "theme_color": "#0070F0",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
