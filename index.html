@@ -193,7 +193,8 @@
       font-size: 16px; font-weight: 700; text-align: center;
       touch-action: manipulation;
     }
-    .amt-btn:active { transform: scale(0.91); background: var(--green-pale); border-color: var(--green-mid); }
+    .amt-btn:active,
+    .amt-btn.tapped { transform: scale(0.91); background: var(--green-pale); border-color: var(--green-mid); color: var(--green); }
 
     .free-row { display: flex; align-items: stretch; gap: 8px; }
     .dollar   { display: flex; align-items: center; font-size: 22px; font-weight: 800; color: var(--green-mid); padding: 0 2px; }
@@ -352,6 +353,7 @@
       </div>
       <div id="basket-list">
         <div class="basket-empty" id="basket-empty">No items yet — choose a category below</div>
+        <div id="basket-items"></div><!-- rows go here; basket-empty is NEVER removed from DOM -->
       </div>
       <div class="basket-done" id="basket-done">
         <button class="btn btn-teal" onclick="completeTransaction()" style="margin-bottom:8px;">
@@ -648,6 +650,11 @@ function selectCat(btn) {
     b.className   = 'amt-btn';
     b.textContent = `$${p}`;
     b.onclick = () => addItem(_selectedCat, p);
+    // Instant visual feedback on touchstart (fires before iOS tap delay)
+    b.addEventListener('touchstart', () => {
+      b.classList.add('tapped');
+      setTimeout(() => b.classList.remove('tapped'), 300);
+    }, { passive: true });
     grid.appendChild(b);
   });
 
@@ -686,15 +693,14 @@ function addItem(cat, amount) {
 }
 
 function renderBasket() {
-  const listEl   = document.getElementById('basket-list');
   const emptyEl  = document.getElementById('basket-empty');
+  const itemsEl  = document.getElementById('basket-items'); // separate div — never removed
   const doneEl   = document.getElementById('basket-done');
   const badgeEl  = document.getElementById('basket-badge');
 
   if (S.basket.length === 0) {
-    listEl.innerHTML = '';
-    listEl.appendChild(emptyEl);
-    emptyEl.style.display = 'block';
+    emptyEl.style.display  = 'block';
+    itemsEl.innerHTML      = '';
     doneEl.style.display   = 'none';
     badgeEl.style.display  = 'none';
     return;
@@ -705,7 +711,7 @@ function renderBasket() {
   badgeEl.style.display  = 'inline-flex';
   badgeEl.textContent    = S.basket.length;
 
-  listEl.innerHTML = '';
+  itemsEl.innerHTML = ''; // only clears the rows div — basket-empty stays in DOM
   S.basket.forEach(item => {
     const row = document.createElement('div');
     row.className = 'basket-row';
@@ -715,14 +721,14 @@ function renderBasket() {
       <span class="basket-amt">${fmt(item.amount)}</span>
       <button class="basket-del" onclick="removeBasketItem('${item.id}')" aria-label="Remove">✕</button>
     `;
-    listEl.appendChild(row);
+    itemsEl.appendChild(row);
   });
 
   if (S.basket.length > 1) {
     const sub = document.createElement('div');
     sub.className   = 'basket-sub';
     sub.textContent = `Basket total: ${fmt(S.basket.reduce((s, i) => s + i.amount, 0))}`;
-    listEl.appendChild(sub);
+    itemsEl.appendChild(sub);
   }
 }
 
