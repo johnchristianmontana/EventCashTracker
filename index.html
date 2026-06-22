@@ -363,6 +363,23 @@
       </div>
     </div>
 
+    <!-- Amount section — sits ABOVE category grid so it appears near top of screen when shown -->
+    <div class="card" id="amt-section">
+      <div class="card-label">
+        2 — Amount for <strong id="amt-cat-label" style="text-transform:none; font-size:13px; color:var(--green-mid);"></strong>
+      </div>
+      <div class="amt-grid" id="amt-presets">
+        <!-- Populated by JS -->
+      </div>
+      <div class="divider">Or enter any amount</div>
+      <div class="free-row">
+        <span class="dollar">$</span>
+        <input class="field" type="number" id="in-amt"
+               placeholder="0.00" min="0.01" step="0.01" inputmode="decimal">
+        <button class="add-btn" onclick="addCustomAmt()">+ Add</button>
+      </div>
+    </div>
+
     <!-- Category selection -->
     <div class="card">
       <div class="card-label">1 — What are they paying for?</div>
@@ -376,23 +393,6 @@
         <button class="cat-btn" data-cat="Tee Shirt"  onclick="selectCat(this)"><span class="cat-icon">👕</span><span class="cat-name">Tee Shirt</span></button>
         <button class="cat-btn" data-cat="Hat"        onclick="selectCat(this)"><span class="cat-icon">🧢</span><span class="cat-name">Hat</span></button>
         <button class="cat-btn" data-cat="Coffee Mug" onclick="selectCat(this)"><span class="cat-icon">☕</span><span class="cat-name">Coffee Mug</span></button>
-      </div>
-    </div>
-
-    <!-- Amount section (shown after category tap) -->
-    <div class="card" id="amt-section">
-      <div class="card-label">
-        2 — Amount for <strong id="amt-cat-label" style="text-transform:none; font-size:12px;"></strong>
-      </div>
-      <div class="amt-grid" id="amt-presets">
-        <!-- Populated by JS -->
-      </div>
-      <div class="divider" id="amt-divider">Or enter any amount</div>
-      <div class="free-row">
-        <span class="dollar">$</span>
-        <input class="field" type="number" id="in-amt"
-               placeholder="0.00" min="0.01" step="0.01" inputmode="decimal">
-        <button class="add-btn" onclick="addCustomAmt()">+ Add</button>
       </div>
     </div>
 
@@ -655,11 +655,9 @@ function selectCat(btn) {
   document.getElementById('in-amt').value = '';
   document.getElementById('amt-section').style.display = 'block';
 
-  // Scroll amount section into view
-  setTimeout(() => {
-    document.getElementById('amt-section')
-      .scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, 80);
+  // Scroll container to top so basket + amount section are both visible.
+  // Using scrollTop on the container is reliable on iOS; scrollIntoView is not.
+  document.getElementById('main-body').scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function addCustomAmt() {
