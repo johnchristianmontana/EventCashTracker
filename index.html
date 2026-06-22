@@ -908,16 +908,14 @@ async function sendToSheets() {
   resultEl.style.display = 'block';
 
   try {
-    // mode: 'no-cors' is the standard pattern for Google Apps Script.
-    // The request goes through and GAS appends to the sheet.
-    // We cannot read the response (it's opaque), so we optimistically
-    // mark items as sent and ask the user to verify in the sheet.
-    await fetch(S.settings.sheetsUrl, {
-      method : 'POST',
-      mode   : 'no-cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body   : JSON.stringify({ rows })
-    });
+    // Send in batches of 5 rows via GET (?data=...) — avoids the GAS redirect
+    // issue that silently drops POST request bodies.
+    const BATCH = 5;
+    for (let i = 0; i < rows.length; i += BATCH) {
+      const batch = rows.slice(i, i + BATCH);
+      const url   = S.settings.sheetsUrl + '?data=' + encodeURIComponent(JSON.stringify({ rows: batch }));
+      await fetch(url, { mode: 'no-cors' });
+    }
 
     S.txns.forEach(t => { if (!t.sent) t.sent = true; });
     persist();
