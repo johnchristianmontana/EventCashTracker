@@ -2,7 +2,7 @@
 // Caches the app shell so it loads with zero network connectivity
 // after the first visit.
 
-const CACHE_NAME = 'cash-tracker-v1';
+const CACHE_NAME = 'cash-tracker-v2';
 const SHELL = [
   './',
   './index.html',

@@ -7,6 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0070F0">
   <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon.png">
   <title>Cash Tracker</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -389,6 +390,8 @@
         <button class="cat-btn" data-cat="Ticket"     onclick="selectCat(this)"><span class="cat-icon">🎟️</span><span class="cat-name">Ticket</span></button>
         <button class="cat-btn" data-cat="Membership" onclick="selectCat(this)"><span class="cat-icon">🏅</span><span class="cat-name">Membership</span></button>
         <button class="cat-btn" data-cat="Donation"   onclick="selectCat(this)"><span class="cat-icon">💝</span><span class="cat-name">Donation</span></button>
+        <button class="cat-btn" data-cat="Raffle Proceeds" onclick="selectCat(this)"><span class="cat-icon">🎫</span><span class="cat-name">Raffle Proceeds</span></button>
+        <button class="cat-btn" data-cat="Silent Auction"  onclick="selectCat(this)"><span class="cat-icon">🖼️</span><span class="cat-name">Silent Auction</span></button>
       </div>
       <div class="divider">Merchandise</div>
       <div class="cat-grid three">
@@ -523,6 +526,8 @@ const CATS     = {
   'Ticket'    : '🎟️',
   'Membership': '🏅',
   'Donation'  : '💝',
+  'Raffle Proceeds': '🎫',
+  'Silent Auction': '🖼️',
   'Tee Shirt' : '👕',
   'Hat'       : '🧢',
   'Coffee Mug': '☕'
