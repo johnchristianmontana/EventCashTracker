@@ -29,25 +29,13 @@ function doGet(e) {
       return jsonResp({ success: false, error: 'No rows in payload' });
     }
 
-    // Create header row if sheet is empty
-    if (sheet.getLastRow() === 0) {
-      const headers = [
-        'Event Name', 'Event Date', 'Volunteer',
-        'Transaction ID', 'Timestamp', 'Category', 'Amount'
-      ];
-      const hdrRange = sheet.getRange(1, 1, 1, headers.length);
-      hdrRange.setValues([headers]);
-      hdrRange.setFontWeight('bold');
-      hdrRange.setBackground('#1B4332');
-      hdrRange.setFontColor('#FFFFFF');
-      sheet.setFrozenRows(1);
-      sheet.getRange('G2:G').setNumberFormat('"$"#,##0.00');
-      sheet.autoResizeColumns(1, 7);
-    }
+    // Ensure header row includes Audit ID for reconciliation.
+    ensureHeaders(sheet);
 
     // Write all rows
     const startRow = sheet.getLastRow() + 1;
     const data = rows.map(r => [
+      r.auditId        || '',
       r.eventName      || '',
       r.eventDate      || '',
       r.volunteer      || '',
@@ -57,13 +45,52 @@ function doGet(e) {
       parseFloat(r.amount) || 0
     ]);
 
-    sheet.getRange(startRow, 1, data.length, 7).setValues(data);
+    sheet.getRange(startRow, 1, data.length, 8).setValues(data);
 
     return jsonResp({ success: true, appended: data.length });
 
   } catch (err) {
     return jsonResp({ success: false, error: err.toString() });
   }
+}
+
+function ensureHeaders(sheet) {
+  const headers = [
+    'Audit ID',
+    'Event Name', 'Event Date', 'Volunteer',
+    'Transaction ID', 'Timestamp', 'Category', 'Amount'
+  ];
+
+  if (sheet.getLastRow() === 0) {
+    const hdrRange = sheet.getRange(1, 1, 1, headers.length);
+    hdrRange.setValues([headers]);
+    hdrRange.setFontWeight('bold');
+    hdrRange.setBackground('#1B4332');
+    hdrRange.setFontColor('#FFFFFF');
+    sheet.setFrozenRows(1);
+    sheet.getRange('H2:H').setNumberFormat('"$"#,##0.00');
+    sheet.autoResizeColumns(1, 8);
+    return;
+  }
+
+  const row1 = sheet.getRange(1, 1, 1, Math.max(sheet.getLastColumn(), 8)).getValues()[0];
+  if ((row1[0] || '') !== 'Audit ID') {
+    sheet.insertColumnBefore(1);
+    sheet.getRange(1, 1).setValue('Audit ID');
+  }
+
+  const current = sheet.getRange(1, 1, 1, 8).getValues()[0];
+  if ((current[7] || '') !== 'Amount') {
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  }
+
+  const hdrRange = sheet.getRange(1, 1, 1, headers.length);
+  hdrRange.setFontWeight('bold');
+  hdrRange.setBackground('#1B4332');
+  hdrRange.setFontColor('#FFFFFF');
+  sheet.setFrozenRows(1);
+  sheet.getRange('H2:H').setNumberFormat('"$"#,##0.00');
+  sheet.autoResizeColumns(1, 8);
 }
 
 function jsonResp(obj) {

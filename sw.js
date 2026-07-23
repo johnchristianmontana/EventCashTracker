@@ -2,7 +2,7 @@
 // Caches the app shell so it loads with zero network connectivity
 // after the first visit.
 
-const CACHE_NAME = 'cash-tracker-v2';
+const CACHE_NAME = 'cash-tracker-v3';
 const SHELL = [
   './',
   './index.html',
@@ -30,17 +30,43 @@ self.addEventListener('activate', event => {
   );
 });
 
-// On fetch: serve from cache, fall back to network
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// On fetch:
+// - Navigation/page requests: network first so users get new HTML quickly.
+// - Static assets: cache first for speed/offline resilience.
 self.addEventListener('fetch', event => {
   // Only handle GET requests for same-origin resources
   if (event.request.method !== 'GET') return;
+  const reqUrl = new URL(event.request.url);
+  if (reqUrl.origin !== self.location.origin) return;
+
+  // For page loads, prefer fresh network HTML and fall back to cached shell.
+  if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put('./index.html', copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match('./index.html'))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then(cached => {
       if (cached) return cached;
       return fetch(event.request).then(response => {
         // Cache successful same-origin responses
-        if (response.ok && event.request.url.startsWith(self.location.origin)) {
+        if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(event.request, copy));
         }

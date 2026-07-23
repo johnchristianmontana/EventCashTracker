@@ -281,6 +281,38 @@
       margin-left: 6px; line-height: 16px;
     }
 
+    /* ── UPDATE BANNER ───────────────────────────── */
+    #update-banner {
+      display: none;
+      position: fixed;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 20px);
+      max-width: 480px;
+      background: #FEF3C7;
+      color: #78350F;
+      border: 1px solid #F59E0B;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 10px;
+      z-index: 10000;
+    }
+    #update-banner.show { display: block; }
+    .update-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+    .update-copy  { font-size: 12px; line-height: 1.35; margin-bottom: 8px; }
+    .update-btns  { display: flex; gap: 8px; }
+    .update-btn {
+      flex: 1;
+      border: none;
+      border-radius: 8px;
+      padding: 9px 10px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .update-btn.primary { background: var(--green-mid); color: white; }
+    .update-btn.secondary { background: #FFFBEB; color: #92400E; border: 1px solid #FCD34D; }
+
     /* ── TOAST ────────────────────────────────────── */
     #toast {
       position: fixed; bottom: 86px; left: 50%;
@@ -298,6 +330,14 @@
 <body>
 
 <div id="toast"></div>
+<div id="update-banner" role="status" aria-live="polite">
+  <div class="update-title">App update ready</div>
+  <div class="update-copy">A newer version is available with updates and fixes.</div>
+  <div class="update-btns">
+    <button class="update-btn primary" id="btn-update-now" type="button">Update App Now</button>
+    <button class="update-btn secondary" id="btn-update-later" type="button">Later</button>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════
      SETUP SCREEN
@@ -495,6 +535,7 @@
     <div class="card">
       <div class="sec-lbl">Current Session</div>
       <div id="sess-info" style="font-size:14px; line-height:1.8; margin-bottom:12px;"></div>
+      <p class="muted" style="margin-bottom:12px;">App Version: <strong id="app-version"></strong></p>
       <button class="btn btn-outline btn-sm" onclick="changeEvent()">Change Event / Volunteer</button>
     </div>
 
@@ -520,6 +561,7 @@
 // ══════════════════════════════════════════════
 
 const STORE    = 'cashtracker_v1';
+const APP_VERSION = 'v3';
 const PRESETS  = [10, 15, 20, 25, 30, 35, 40, 45, 50];
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyv4ZorBDOSoWzHsxJ3dPVVqzFqT6Fy3Xca3306LWWLpxksEfbTI3LXSgOABZNqMyG-/exec';
 const CATS     = {
@@ -550,6 +592,10 @@ function blank() {
 let S = blank();
 let _prevScreen  = 'screen-main';
 let _selectedCat = null;
+let _swRegistration = null;
+let _pendingWorker = null;
+let _isRefreshingAfterUpdate = false;
+let _pendingSendConfirmIds = [];
 
 function load() {
   try { const r = localStorage.getItem(STORE); if (r) S = JSON.parse(r); }
@@ -582,6 +628,10 @@ function navBack() { showScreen(_prevScreen); }
 function initApp() {
   load();
   document.getElementById('in-date').value = todayStr();
+  const updateNowBtn = document.getElementById('btn-update-now');
+  const updateLaterBtn = document.getElementById('btn-update-later');
+  if (updateNowBtn) updateNowBtn.addEventListener('click', applyAppUpdate);
+  if (updateLaterBtn) updateLaterBtn.addEventListener('click', hideUpdateBanner);
   if (S.event) {
     showScreen('screen-main');
     refreshHeader();
@@ -592,8 +642,63 @@ function initApp() {
   }
   // Register service worker for offline capability
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    setupServiceWorkerUpdates();
   }
+}
+
+function setupServiceWorkerUpdates() {
+  const onNewWorker = worker => {
+    _pendingWorker = worker;
+    showUpdateBanner();
+  };
+
+  navigator.serviceWorker.register('sw.js').then(reg => {
+    _swRegistration = reg;
+
+    if (reg.waiting) onNewWorker(reg.waiting);
+
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing;
+      if (!installing) return;
+      installing.addEventListener('statechange', () => {
+        // If there is already a controller, this is an update to an existing install.
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          onNewWorker(installing);
+        }
+      });
+    });
+
+    // Periodically check for updates while app is open.
+    setInterval(() => {
+      if (_swRegistration) _swRegistration.update().catch(() => {});
+    }, 5 * 60 * 1000);
+
+    // Check once shortly after startup.
+    setTimeout(() => {
+      if (_swRegistration) _swRegistration.update().catch(() => {});
+    }, 7000);
+  }).catch(() => {});
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (_isRefreshingAfterUpdate) return;
+    _isRefreshingAfterUpdate = true;
+    window.location.reload();
+  });
+}
+
+function showUpdateBanner() {
+  const banner = document.getElementById('update-banner');
+  if (banner) banner.classList.add('show');
+}
+
+function hideUpdateBanner() {
+  const banner = document.getElementById('update-banner');
+  if (banner) banner.classList.remove('show');
+}
+
+function applyAppUpdate() {
+  if (!_pendingWorker) return;
+  _pendingWorker.postMessage({ type: 'SKIP_WAITING' });
 }
 
 function startSession() {
@@ -900,6 +1005,7 @@ async function sendToSheets() {
   btn.disabled    = true;
 
   const rows = unsent.map(t => ({
+    auditId      : t.id,
     eventName    : S.event?.name      ?? '',
     eventDate    : S.event?.date      ?? '',
     volunteer    : S.event?.volunteer ?? '',
@@ -911,28 +1017,62 @@ async function sendToSheets() {
 
   const resultEl = document.getElementById('send-result');
   resultEl.style.display = 'block';
+  _pendingSendConfirmIds = [];
 
   try {
-    // Send in batches of 5 rows via GET (?data=...) — avoids the GAS redirect
-    // issue that silently drops POST request bodies.
+    // First try verified sends (CORS JSON response). If browser blocks
+    // response reads for this endpoint, fall back to unverified no-cors.
     const BATCH = 5;
-    for (let i = 0; i < rows.length; i += BATCH) {
-      const batch = rows.slice(i, i + BATCH);
-      const url   = S.settings.sheetsUrl + '?data=' + encodeURIComponent(JSON.stringify({ rows: batch }));
-      await fetch(url, { mode: 'no-cors' });
+    let verified = false;
+    let appended = 0;
+
+    try {
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const url   = S.settings.sheetsUrl + '?data=' + encodeURIComponent(JSON.stringify({ rows: batch }));
+        const resp  = await fetch(url, { mode: 'cors', cache: 'no-store' });
+        if (!resp.ok) throw new Error(`Server HTTP ${resp.status}`);
+        const body = await resp.json();
+        if (!body.success) throw new Error(body.error || 'Google Sheets rejected this batch');
+        appended += Number(body.appended || 0);
+      }
+      verified = true;
+    } catch (verifyErr) {
+      // If verified response checks are blocked, still attempt transport send.
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const batch = rows.slice(i, i + BATCH);
+        const url   = S.settings.sheetsUrl + '?data=' + encodeURIComponent(JSON.stringify({ rows: batch }));
+        await fetch(url, { mode: 'no-cors' });
+      }
     }
 
-    S.txns.forEach(t => { if (!t.sent) t.sent = true; });
-    persist();
-
-    resultEl.innerHTML = `
-      <div class="success-box">
-        <div class="check">✅</div>
-        <h3>${rows.length} row${rows.length !== 1 ? 's' : ''} sent</h3>
-        <p>Please open Google Sheets to confirm the data arrived.</p>
-      </div>
-    `;
-    renderSend();
+    if (verified) {
+      if (appended !== rows.length) {
+        throw new Error(`Verification mismatch: expected ${rows.length}, confirmed ${appended}`);
+      }
+      S.txns.forEach(t => { if (!t.sent) t.sent = true; });
+      persist();
+      resultEl.innerHTML = `
+        <div class="success-box">
+          <div class="check">✅</div>
+          <h3>${rows.length} row${rows.length !== 1 ? 's' : ''} sent</h3>
+          <p>Write verified by server response.</p>
+        </div>
+      `;
+      renderSend();
+    } else {
+      _pendingSendConfirmIds = unsent.map(t => t.id);
+      resultEl.innerHTML = `
+        <div class="warn-box">
+          ⚠️ Data was sent, but this browser blocked delivery confirmation.<br>
+          Please confirm the rows in Google Sheets, then tap <strong>Mark Confirmed as Sent</strong>.
+        </div>
+        <button class="btn btn-green btn-sm" onclick="markPendingSendConfirmed()">
+          ✓ &nbsp;Mark Confirmed as Sent
+        </button>
+      `;
+      renderSend();
+    }
 
   } catch (err) {
     resultEl.innerHTML = `
@@ -947,6 +1087,21 @@ async function sendToSheets() {
   btn.disabled  = false;
 }
 
+function markPendingSendConfirmed() {
+  if (!_pendingSendConfirmIds.length) {
+    toast('No pending send confirmation');
+    return;
+  }
+  const idSet = new Set(_pendingSendConfirmIds);
+  S.txns.forEach(t => {
+    if (idSet.has(t.id)) t.sent = true;
+  });
+  _pendingSendConfirmIds = [];
+  persist();
+  renderSend();
+  toast('Marked confirmed rows as sent');
+}
+
 function resetSentStatus() {
   if (!S.txns.length) { toast('No transactions to reset'); return; }
   if (!confirm('Mark all transactions as unsent? They will all be included in the next send.')) return;
@@ -958,8 +1113,9 @@ function resetSentStatus() {
 
 function exportCSV() {
   if (!S.txns.length) { toast('No transactions to export'); return; }
-  const hdr  = ['Event Name','Event Date','Volunteer','Transaction ID','Timestamp','Category','Amount'];
+  const hdr  = ['Audit ID','Event Name','Event Date','Volunteer','Transaction ID','Timestamp','Category','Amount'];
   const body = S.txns.map(t => [
+    cell(t.id),
     cell(S.event?.name ?? ''),
     S.event?.date ?? '',
     cell(S.event?.volunteer ?? ''),
@@ -987,6 +1143,7 @@ function cell(v) { return `"${String(v).replace(/"/g, '""')}"`; }
 
 function renderSettings() {
   document.getElementById('in-url').value = S.settings.sheetsUrl ?? '';
+  document.getElementById('app-version').textContent = APP_VERSION;
   const info = document.getElementById('sess-info');
   if (S.event) {
     const d = new Date(S.event.date + 'T12:00:00').toLocaleDateString('en-US',
